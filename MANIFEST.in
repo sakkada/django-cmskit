@@ -1,0 +1,3 @@
+include README.md LICENSE.txt
+recursive-include cmskit *.html *.txt *.py
+global-exclude *.py[co]

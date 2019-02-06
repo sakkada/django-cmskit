@@ -1,0 +1,15 @@
+{% extends 'nodes/base.html' %}
+
+{% block content %}
+
+    <ul id="item_list">
+        {% for item in page_item.object_list %}
+        <li><h2><a href="{{ item.get_absolute_url }}{{ querystring.as__full }}">{{ item.title }}</a> {{ item.date_start|date:"d.m.Y" }}</h2></li>
+        {% endfor %}
+    </ul>
+
+    {% with page_item.pagination as pagination %}
+    {% include "nodes/pagination.html" %}
+    {% endwith %}
+
+{% endblock %}

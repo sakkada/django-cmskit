@@ -1,0 +1,19 @@
+{% extends 'nodes/base.html' %}
+
+{% block content %}
+
+    {% if item.show_item_name %}
+    <h2>{{ item.title }}</h2>
+    {% endif %}
+
+    {% if item.image %}
+    <a style="float: left; padding: 0 10px 10px 0;" href="{{ item.image.url }}"><img src="{{ item.image.extra_thumbnails.main }}" width="{{ item.image.extra_thumbnails.main.width }}" height="{{ item.image.extra_thumbnails.main.height }}" alt="{{ item.name }}"></a>
+    {% endif %}
+
+    <p>{{ item.text|safe }}</p>
+
+    {% if item.show_node_link %}
+    <a href="{{ item.page.get_absolute_url }}{{ querystring.as__full }}">← К списку</a>
+    {% endif %}
+
+{% endblock %}

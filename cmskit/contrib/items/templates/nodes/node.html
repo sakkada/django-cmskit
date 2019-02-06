@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+
+  {% if node.text %}
+  <p>{{ node.text|safe }}</p>
+  {% else %}
+  <p>The node's "{{ node }}" text is empty, content will coming soon.</p>
+  {% endif %}
+
+{% endblock %}

@@ -1,0 +1,58 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ru">
+    <head>
+        <!-- TITLE -->
+        <title>{% block title %}[Meta title]{% endblock %}</title>
+        <!-- // TITLE -->
+        <!-- METATAGS -->
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        {% block metatags %}{% endblock %}
+        <!-- // METATAGS -->
+        {% block styles %}
+        <style type="text/css">
+            html, body { margin:0; padding:0; font-family: Georgia; }
+            h1 { color: #f04; margin: 0px; clear: left; margin: 50px 0 0 0; }
+            h2 { color: #28f; }
+            a { color: #28f; }
+            #container{ width:800px; margin:25px auto 0 auto; }
+            #content{ float:right; width:590px; }
+            #navigation { float:left; width:180px; background-color: #eee; padding: 0 0 10px 0; }
+            #navigation ul { margin: 0px; padding-left: 20px; }
+            #navigation ul li { list-style-type: none; }
+            #navigation ul li.selected a { color: #f04; }
+            #navigation ul li.descendant a { color: #28f; }
+            #breadcrumbs ul { list-style-type: none; margin: 0px; padding: 0px; }
+            #breadcrumbs ul li { float: left; }
+            #item_list { list-style-type: square; color: #888; margin: 20px 0 0 0; padding: 0 0 0 17px; }
+            #item_list li h2 { margin: 0px; padding: 0px; }
+        </style>
+        {% endblock %}
+    </head>
+    <body>
+        <div id="container">
+            <div id="wrapper">
+                <div id="content">
+                    <!-- BREADCRUMBS -->
+                    {% block breadcrumbs %}<div id="breadcrumbs">[Breadcrumbs]</div>{% endblock %}
+                    <!-- // BREADCRUMBS -->
+
+                    <!-- H1 CURRENT SECTION NAME -->
+                    {% block current %}[Current menu item]{% endblock %}
+                    <!-- // H1 CURRENT SECTION NAME -->
+
+                    <!-- NODE CONTENT -->
+                    {% block content %}{% endblock %}
+                    <!-- // NODE CONTENT -->
+                </div>
+            </div>
+
+            <div id="navigation">
+                <!--NAVIGATION RIGHT-->
+                {% block navigation %}[Navigation menu]{% endblock %}
+                <!--// NAVIGATION RIGHT-->
+            </div>
+        </div>
+
+        {% block scripts %}{% endblock %}
+    </body>
+</html>

@@ -1,0 +1,27 @@
+{% comment %}
+  require 3 variables:
+    - pagination object
+    - url_no_page string
+    - querystring object
+{% endcomment %}
+
+{% load i18n %}
+{% if pagination and pagination.num_pages > 1 and querystring and url_no_page %}
+<ul id="pagination">
+  {% if pagination.first %}<li class="first"><a href="{{ url_no_page }}?page={{ pagination.first }}{{ querystring.no__page__as__part }}">{% trans "first" %}</a></li>{% endif %}
+  {% if pagination.prev %}<li class="prev"><a href="{{ url_no_page }}?page={{ pagination.prev }}{{ querystring.no__page__as__part }}">{% trans "prev" %}</a></li>{% endif %}
+  {% if pagination.dots_left %}<li class="dots_left"><a href="{{ url_no_page }}?page={{ pagination.dots_left }}{{ querystring.no__page__as__part }}">...</a></li>{% endif %}
+
+  {% for page in pagination.pages %}
+  {% if page.current %}
+  <li class="current"><span>{{ page.number }}</span></li>
+  {% else %}
+  <li><a href="{{ url_no_page }}?page={{ page.number }}{{ querystring.no__page__as__part }}">{{ page.number }}</a></li>
+  {% endif %}
+  {% endfor %}
+
+  {% if pagination.dots_right %}<li class="dots_right"><a href="{{ url_no_page }}?page={{ pagination.dots_right }}{{ querystring.no__page__as__part }}">...</a></li>{% endif %}
+  {% if pagination.next %}<li class="next"><a href="{{ url_no_page }}?page={{ pagination.next }}{{ querystring.no__page__as__part }}">{% trans "next" %}</a></li>{% endif %}
+  {% if pagination.last %}<li class="last"><a href="{{ url_no_page }}?page={{ pagination.last }}{{ querystring.no__page__as__part }}">{% trans "last" %}</a></li>{% endif %}
+</ul>
+{% endif %}

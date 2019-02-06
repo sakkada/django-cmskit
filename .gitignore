@@ -1,0 +1,5 @@
+# ignore temporary
+*.swp
+*.py[co]
+*.orig
+cmskit/tests
