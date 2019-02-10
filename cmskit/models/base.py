@@ -23,6 +23,7 @@ from django.utils.functional import cached_property
 from django.utils.text import capfirst, slugify
 from django.utils.translation import ugettext_lazy as _
 from treebeard.mp_tree import MP_Node
+from treebeard.exceptions import InvalidPosition
 
 from .query import PageManager
 from .ti import TIModelBase, TIBaseModel
@@ -498,31 +499,38 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
                 type(self).__name__, self.url_path)
 
     def page_is_moved_handler(self):
+        # Extend this method if some actions required after Page is moved.
         pass
 
-    @transaction.atomic  # only commit when all descendants are properly updated
+    @transaction.atomic
     def move(self, target, pos=None):
         """
-        Extension to the treebeard 'move' method to ensure that url_path is updated too.
+        Extension to the treebeard 'move' method to ensure that
+        Page will be places to allowed position.
         """
 
-        from treebeard.exceptions import InvalidPosition
-        # todo: move to special admin method
+        # todo: maybe move it to the special admin method
         cpos = ('first-child', 'last-child', 'sorted-child',)
-        spos = ('first-sibling', 'left', 'right', 'last-sibling', 'sorted-sibling',)
-        if pos in cpos and not self.can_move_to(target):
-            raise InvalidPosition('Can not move to %s, allowed (%s)' % (target, self.clean_parent_page_models()))
-        if pos in spos and target.get_parent() and not self.can_move_to(target.get_parent()):
-            raise InvalidPosition('Can not move to %s, allowed (%s)' % (target, self.clean_parent_page_models()))
+        spos = ('first-sibling', 'left', 'right', 'last-sibling',
+                'sorted-sibling',)
+        page = self.specific
+        if (pos in cpos and not page.can_move_to(target)) or (
+                pos in spos and target.get_parent() and
+                not page.can_move_to(target.get_parent())):
+            raise InvalidPosition(
+                'Can not move "%s" (%s) to %s (%s), '
+                'allowed parent types are (%s).' % (
+                    page, type(page).__name__,
+                    target, target.specific_class.__name__,
+                    ', '.join(i.__name__
+                              for i in page.allowed_parent_page_models()),
+                ))
 
         super().move(target, pos=pos)
-        # treebeard's move method doesn't actually update the in-memory instance, so we need to work
-        # with a freshly loaded one now
-        # new_self = type(self).objects.get(id=self.id)
-        # new_self.save()
+        type(page).objects.get(id=page.id).save(is_moved=True)
 
-        # Log
-        logger.info("Page moved: \"%s\" id=%d", self.title, self.id)
+        logger.info('Page moved: #%d "%s" to #%d: "%s" as "%s"',
+                    page.id, page.title, target.id, target.title, pos)
 
     def delete(self, *args, **kwargs):
         # Ensure that deletion always happens on an instance of Page, not a specific subclass. This

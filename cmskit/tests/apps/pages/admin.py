@@ -1,11 +1,11 @@
 from django.contrib import admin
 from treebeard.admin import TreeAdmin
-from cmskit.admin import PageBaseAdmin
+from cmskit.admin import BasePageAdmin
 from cmskit.contrib.items.admin import ItemAdmin
 from . import models
 
 
-class PageAdmin(PageBaseAdmin, TreeAdmin):
+class PageAdmin(BasePageAdmin, TreeAdmin):
     search_fields = ('title',)
     list_display = ('title', 'id', 'content_type', 'depth', 'path', 'numchild', 'published', 'active', 'slug',
         #'slug_path',
