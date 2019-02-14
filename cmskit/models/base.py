@@ -62,16 +62,19 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
         ('node', _('always node')),
     )
     ALT_TEMPLATE_CHOICES = ()
+    URL_NAME_IGNORED = (
+        r'^admin\:', r'^django-admindocs-',
+    )
 
     content_type = models.ForeignKey(
-        'contenttypes.ContentType', null=True,
+        'contenttypes.ContentType', null=True, editable=False,
         on_delete=models.SET_NULL, verbose_name=_('content type'))
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.SET_NULL, verbose_name=_('owner'))
     parent = models.ForeignKey('self', null=True, blank=True, editable=False,
         related_name='children', on_delete=models.SET_NULL,
-        verbose_name=_('page'))
+        verbose_name=_('parent page'))
 
     title = models.CharField(_('title'), max_length=2048)
 
@@ -86,52 +89,52 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
     url_path = models.CharField(
         _('url path'), max_length=1024, null=True, db_index=True,
         editable=False, default=None,
-        help_text='automatically generated, empty value means inaccessibility.')
+        help_text='Automatically generated, empty value means inaccessibility.')
     url_name = models.CharField(_('url name'), max_length=1024, blank=True)
     url_text = models.CharField(
         _('url text'), max_length=1024, blank=True, help_text=_(
-            'overwrite the path to this node (if leading slashes '
+            'Overwrite the path to this node (if leading slashes '
             '("/some/url/") - node is only link in menu, else '
-            '("some/url") - standart behaviour)'
+            '("some/url") - standart behaviour).'
         ))
 
     base_template = models.CharField(
         _('base template'), max_length=128, blank=True, default='',
-        help_text=_('the extendable base template name'))
+        help_text=_('The extendable base template name.'))
 
     # behaviour
     behaviour = models.CharField(_('behaviour'), max_length=32, blank=True)
 
     alt_template = models.CharField(
         _('alternative template'), max_length=128, blank=True,
-        help_text=_('the template used to render the content instead original'))
+        help_text=_('The template used to render the content instead original.'))
     alt_view = models.CharField(
         _('alternative view'), max_length=128, blank=True,
-        help_text=_('the view loaded instead original'))
+        help_text=_('The view loaded instead original.'))
 
     # menu
     menu_weight = models.IntegerField(_('menu weight'), default=500)
     menu_title = models.CharField(
         _('menu title'), max_length=255, blank=True,
-        help_text=_('overwrite the title in the menu'))
+        help_text=_('Overwrite the title in the menu.'))
     menu_extender = models.CharField(
         _('attached menu'), max_length=64, db_index=True, blank=True,
-        help_text=_('menu extender class name'))
+        help_text=_('Menu extender class name.'))
     menu_in = models.BooleanField(
         _('in navigation'), default=True, db_index=True,
-        help_text=_('this node in navigation (menu in?)'))
+        help_text=_('This node in navigation (menu in?).'))
     menu_in_chain = models.BooleanField(
         _('in chain and title'), default=True, db_index=True,
-        help_text=_('this node in chain and title (chain in?)'))
+        help_text=_('This node in chain and title (chain in?).'))
     menu_jump = models.BooleanField(
         _('jump to first child'), default=False,
-        help_text=_('jump to the first child element if exist (jump?)'))
+        help_text=_('Jump to the first child element if exist (jump?).'))
     menu_login_required = models.BooleanField(
         _('menu login required'), default=False,
-        help_text=_('show in menu only if user is logged in (login?)'))
+        help_text=_('Show in menu only if user is logged in (login?).'))
     menu_show_current = models.BooleanField(
         _('show node name'), default=True,
-        help_text=_('show node name in h1 tag if current (h1 title?)'))
+        help_text=_('Show node name in h1 tag if current (h1 title?).'))
 
     # stat info
     date_create = models.DateTimeField(editable=False, auto_now_add=True)
@@ -145,7 +148,7 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
     # Define the maximum number of instances this page type can have. Default to unlimited.
     max_count = None
 
-    view_name = '{app_label}_{model_name}_details'
+    view_name = '{app_label}:{app_label}_{model_name}_details'
 
     class Meta:
         verbose_name = _('Page')
@@ -466,7 +469,17 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
     def save(self, **kwargs):
         """Update path variable"""
         is_new, is_moved = self.pk is None, kwargs.pop('is_moved', False)
-        parent = self.get_parent()
+        parent = self.get_parent() and self.get_parent().specific
+
+        # complex save if save run on non specific model
+        if not is_new and not type(self) == type(self.specific):
+            # save just data
+            super().save(**kwargs)
+            # run full featured save on specific model
+            type(self.specific).objects.get(pk=self.pk).save(is_moved=True,
+                                                             **kwargs)
+            self.refresh_from_db()  # reload original instance
+            return
 
         # check slug modification
         if not (is_new or is_moved):
@@ -479,9 +492,10 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
         # get path value
         if is_new or is_moved:
             self.slug_path = parent.get_slug_path() if parent else ''
-            self.url_path = self.get_path_or_url()[0]
             self.active = self.get_active()
-            self.parent = self.get_parent()
+            self.parent = parent
+
+        self.url_path = self.get_path_or_url()[0]
 
         super().save(**kwargs)
 

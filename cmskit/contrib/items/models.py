@@ -39,18 +39,18 @@ class BaseItemPage(models.Model):
 
     order_by = models.CharField(
         _('ordering'), max_length=128, blank=True, help_text=_(
-            'overwrite default ordering (default is empty, '
+            'Overwrite default ordering (default is empty, '
             'equal to "-date_start -weight", separate '
             'strongly with one space char)<br>possible keys: '
-            'date_start, date_end, weight, title, slug, url'
+            'date_start, date_end, weight, title, slug, url.'
         ))
     onpage = models.PositiveSmallIntegerField(
         _('onpage'), default=10,
-        help_text=_('perpage count (default=10, 1<=count<=999)'))
+        help_text=_('Perpage count (default=10, 1<=count<=999).'))
 
     class Meta:
-        verbose_name = _('page with items')
-        verbose_name_plural = _('pages with items')
+        verbose_name = _('Page with items')
+        verbose_name_plural = _('Pages with items')
         abstract = True
 
     def get_order_by(self):
@@ -106,17 +106,17 @@ class BaseItem(models.Model):
     # page = models.ForeignKey(
     #     ItemPage, on_delete=models.CASCADE,
     #     related_name='items', verbose_name=_('page'))
+    # brief = models.TextField(_('brief'), max_length=1024*20, blank=True)
+    # text = models.TextField(_('text'), max_length=1024*200, blank=True)
 
     active = models.BooleanField(_('is active'), default=False, editable=False)
     published = models.BooleanField(_('is published'), default=True)
     visible = models.BooleanField(
         _('is visible'), default=True, help_text=_(
-            'show item in items list, also redirect if alone (visible?)'
+            'Show item in items list, also redirect if alone (visible?).'
         ))
 
     title = models.CharField(_('name'), max_length=2048)
-    brief = models.TextField(_('brief'), max_length=1024*20, blank=True)
-    text = models.TextField(_('text'), max_length=1024*200, blank=True)
 
     # dates
     date_start = models.DateTimeField(
@@ -133,20 +133,20 @@ class BaseItem(models.Model):
     # behaviour
     alt_template = models.CharField(
         _('alternative template'), max_length=128, blank=True,
-        help_text=_('template to render the content instead original'))
+        help_text=_('Template to render the content instead original.'))
     alt_view = models.CharField(
         _('alternative view'), max_length=128, blank=True,
-        help_text=_('alternative view for item detail view'))
+        help_text=_('Alternative view for item detail view.'))
 
     show_item_name = models.BooleanField(
         _('show item name'), default=True,
-        help_text=_('show item name, usually in h2 tag (name?)'))
+        help_text=_('Show item name, usually in h2 tag (name?).'))
     show_node_link = models.BooleanField(
         _('show link to node'), default=True,
-        help_text=_('show link to parent node (to list?)'))
+        help_text=_('Show link to parent node (to list?).'))
     show_in_meta = models.BooleanField(
         _('show in meta'), default=True,
-        help_text=_('show item name in meta title and chain (meta?)'))
+        help_text=_('show item name in meta title and chain (meta?).'))
 
     # stat info
     date_create = models.DateTimeField(editable=False, auto_now_add=True)
@@ -160,8 +160,8 @@ class BaseItem(models.Model):
         ordering = ('-date_start', '-weight',)
         abstract = True
 
-    def __unicode__(self):
-        return self.name
+    def __str__(self):
+        return self.title
 
     def get_absolute_url(self, use_url=True):
         if use_url and self.url:

@@ -49,3 +49,23 @@ def resolve_model_string(model_string, default_app=None):
         raise ValueError(
             'Can not resolve {0!r} into a model'.format(model_string),
             model_string)
+
+
+def dicts_deep_merge(one, two):
+    """
+    Deep merge two dicts.
+    If left and right parts is dict typed, merge it,
+    else replace value from one by value from two.
+
+        >>> dicts_deep_merge({1:{10:10}, 2:2},
+        >>>                  {1:{10:11,11:11}, 2:22, 3:33})
+        {1:{10:11, 11:11,}, 2:22, 3:33,}
+    """
+
+    for key in two:
+        if (key in one and
+                isinstance(one[key], dict) and isinstance(two[key], dict)):
+            dicts_deep_merge(one[key], two[key])
+        elif not key in one or not one[key] == two[key]:
+            one[key] = two[key]
+    return one

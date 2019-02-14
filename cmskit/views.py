@@ -156,7 +156,6 @@ class PageView(TemplateView):
             ] + paths
 
         self.template_name = [(p % b) for b in bases for p in paths]
-        print(self.template_name)
 
     def get_alt_view_by_name(self, view_name, obj_type):
         """get extraview by name and type"""

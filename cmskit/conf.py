@@ -27,9 +27,9 @@ CMSKIT_TEMPLATES = TEMPLATES = (
 
 DEFAULT_TEMPLATES = (
     {
-        'name': 'base',                         # required
+        'code': 'base',                         # required
         'path': 'base.html',                    # required
-        'title': _('General site template'),
+        'name': _('General site template'),
     },
 )
 
