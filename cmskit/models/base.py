@@ -89,7 +89,7 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
     url_path = models.CharField(
         _('url path'), max_length=1024, null=True, db_index=True,
         editable=False, default=None,
-        help_text='Automatically generated, empty value means inaccessibility.')
+        help_text='Automatically generated, None value means inaccessibility.')
     url_name = models.CharField(_('url name'), max_length=1024, blank=True)
     url_text = models.CharField(
         _('url text'), max_length=1024, blank=True, help_text=_(

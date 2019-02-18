@@ -118,7 +118,7 @@ class BaseChoiceFieldsFormMixin(forms.ModelForm):
             (':'.join(ns + [name]), path)
             for func, path, ns, name in extract_views_from_urlpatterns(
                 urlconf.urlpatterns)
-            if path and name and not('(?P' in path or '<' in path)
+            if name and not('(?P' in path or '<' in path)
         ]
         return [(name, '/%s (%s)' % (url, name)) for name, url in choices
                 if not ignored or not any(re.match(i, name) for i in ignored)]
