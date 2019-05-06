@@ -1,7 +1,7 @@
 from django.contrib import admin
 from treebeard.admin import TreeAdmin
 from cmskit.admin import BasePageAdmin
-from cmskit.contrib.items.admin import ItemAdmin
+from cmskit.contrib.items.admin import BaseItemAdmin
 from . import models
 
 
@@ -29,5 +29,5 @@ admin.site.register(models.Page, PageAdmin)
 #admin.site.register(models.MMTIPage)
 #admin.site.register(models.STIPage, STIPageAdmin)
 #admin.site.register(models.SSTIPage)
-admin.site.register(models.PageItems)
-admin.site.register(models.Item, ItemAdmin)
+admin.site.register(models.ItemPage)
+admin.site.register(models.Item, BaseItemAdmin)

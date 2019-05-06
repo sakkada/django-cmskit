@@ -1,28 +1,27 @@
 from django.contrib.sites.shortcuts import get_current_site
-from nodes.base import Menu, NavigationNode
+from nodes.base import Menu, registry
 
 
 class PageMenu(Menu):
     model_class = None
-    navigation_node_class = NavigationNode
+    navigation_node_class = registry.navigation_node
 
-    def get_data(self, node):
+    def get_data(self, page):
         attr = {
-            'reverse_id': '%s_%s' % (node.__class__.__name__.lower(), node.pk),
-            'auth_required': node.menu_login_required,
-            'show_meta_selected': node.menu_show_current,
-            'jump': node.menu_jump,
-            'title': node.title,
-            #'meta_title': node.meta_title,
-            #'meta_keywords': node.meta_keywords,
-            #'meta_description': node.meta_description,
-            'visible_in_chain': node.menu_in_chain,
+            'reverse_id': '%s_%s' % (page.__class__.__name__.lower(), page.pk),
+            'auth_required': page.menu_login_required,
+            'show_meta_selected': page.menu_show_current,
+            'jump': page.menu_jump,
+            'title': page.title,
+            'visible_in_chain': page.menu_in_chain,
         }
-
-        if node.menu_extender:
+        if page.menu_extender:
             attr['navigation_extenders'] = [
-                i.strip() for i in node.menu_extender.split(',') if i.strip()
+                i.strip() for i in page.menu_extender.split(',') if i.strip()
             ]
+        # builtin metatags support (see contrib.metatags app)
+        if hasattr(page, 'get_metatags'):
+            attr['metatags'] = page.get_metatags()
         return attr
 
     def get_queryset(self, request):
@@ -30,7 +29,7 @@ class PageMenu(Menu):
 
     def get_nodes(self, request):
         if not self.model_class:
-            raise Exception('model_class variable not defined in NodeMenu')
+            raise ValueError('model_class variable is not defined in PageMenu')
         pages = self.get_queryset(request)
         nodes, home, cut_branch, cut_level = [], None, False, None
         for page in pages:
@@ -38,23 +37,23 @@ class PageMenu(Menu):
             if cut_branch:
                 if cut_level < page.level: continue
                 cut_branch = False
-            if not self.node_is_active(page):
+            if not self.page_is_active(page):
                 cut_branch = True
                 cut_level = page.level
                 continue
-            nodes.append(self.node_to_navinode(page))
+            nodes.append(self.page_to_navigation_node(page))
         return nodes
 
-    def node_is_active(self, node):
-        return node.active
+    def page_is_active(self, page):
+        return page.active
 
-    def node_to_navinode(self, node):
-        n = self.navigation_node_class(
-            node.get_menu_title(),
-            node.get_absolute_url(),
-            node.pk,
-            node.parent_id,
-            visible=node.menu_in,
-            data=self.get_data(node),
+    def page_to_navigation_node(self, page):
+        n = self.get_navigation_node_class()(
+            page.get_menu_title(),
+            page.get_absolute_url(),
+            page.pk,
+            page.parent_id,
+            visible=page.menu_in,
+            data=self.get_data(page),
         )
         return n

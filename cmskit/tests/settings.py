@@ -18,7 +18,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'datadir')
 APPS_DIR = os.path.join(BASE_DIR, 'apps')
 
-# insert apps dir to sys.path
+# Insert apps dir to sys.path
 APPS_DIR in sys.path or sys.path.insert(0, APPS_DIR)
 
 # Quick-start development settings - unsuitable for production

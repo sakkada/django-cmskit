@@ -23,7 +23,7 @@ Page metaclass
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from cmskit.models import BasePage
-from cmskit.contrib.items.models import PageItems, Item
+from cmskit.contrib.items.models import BaseItemPage, BaseItem
 
 
 class Page(BasePage):
@@ -69,12 +69,13 @@ class SSTIPage(STIPage):
 
 
 
-class PageItems(PageItems, Page):
+class ItemPage(BaseItemPage, Page):
     pass
 
-class Item(Item):
+
+class Item(BaseItem):
     page = models.ForeignKey(
-        PageItems, related_name='items', on_delete=models.CASCADE,
+        ItemPage, related_name='items', on_delete=models.CASCADE,
         help_text=_('Parent page.'))
 
 

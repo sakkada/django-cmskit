@@ -67,7 +67,7 @@ class BaseTargetFormMixin(forms.ModelForm):
                 {'class': model.__name__, 'max_count': model.max_count})
         if model and tt and tp and not model.can_create_at(tp):
             raise forms.ValidationError(
-                _('Page with class "%(class)s" con not be created'
+                _('Page with class "%(class)s" can not be created'
                   'at page with class "%(parent_class)s", allowed parent'
                   ' page types are (%(parent_classes)s).') %
                 {'class': model.__name__,
@@ -126,10 +126,10 @@ class BaseChoiceFieldsFormMixin(forms.ModelForm):
     def get_menu_extender_choices(self):
         try:
             from nodes.base import registry
+            registry.autodiscover()
+            return [(i, i,) for i in registry.menus.keys()]
         except ImportError:
             return []
-        registry.autodiscover()
-        return [(i, i,) for i in registry.menus.keys()]
 
     def get_base_template_choices(self):
         return [(i['code'], i['name'],) for i in conf.TEMPLATES]
@@ -296,7 +296,7 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
         else:
             to_field = request.POST.get(TO_FIELD_VAR, request.GET.get(TO_FIELD_VAR))
             if to_field and not self.to_field_allowed(request, to_field):
-                raise DisallowedModelAdminToField("The field %s cannot be referenced." % to_field)
+                raise DisallowedModelAdminToField("The field %s can not be referenced." % to_field)
 
             obj = self.get_object(request, unquote(object_id), to_field)
             obj = obj.specific if obj else None
