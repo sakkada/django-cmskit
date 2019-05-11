@@ -5,25 +5,30 @@ from functools import update_wrapper
 from django import forms
 from django.conf import settings
 from django.contrib import admin
-from django.contrib.admin.views.main import ERROR_FLAG
+from django.contrib import messages
 from django.contrib.admin import helpers
-from django.contrib.admin.options import TO_FIELD_VAR
+from django.contrib.admin.views.main import ERROR_FLAG
+from django.contrib.admin.options import TO_FIELD_VAR, csrf_protect_m
 from django.contrib.admin.exceptions import DisallowedModelAdminToField
 from django.contrib.admin.utils import quote, unquote
-from django.contrib.admin.options import csrf_protect_m
 from django.contrib.admindocs.views import extract_views_from_urlpatterns
 from django.contrib.contenttypes.models import ContentType
 from django.core import checks
+from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import modelform_factory
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import force_text
 from django.urls import reverse, path
+from django.urls.exceptions import NoReverseMatch
 
 from cmskit.models import BasePage
 from cmskit.utils.admin import FieldsetsDictMixin
 from cmskit import conf
+
+
+ERROR_VALUE_FOR_REDIRECT = 7
 
 
 # Admin forms
@@ -40,15 +45,15 @@ class BaseTargetFormMixin(forms.ModelForm):
             *BaseModel.get_page_models(), for_concrete_models=False
         )
 
-        self.fields['target_page'].queryset = BaseModel.objects.all()
-        self.fields['target_page'].label_from_instance = lambda obj: (
-            '%s%s (%s)' % ((obj.depth - 1) * '.. ',
-                           obj, obj.specific_class.__name__,)
-        )
         self.fields['target_type'].queryset = ContentType.objects.filter(
             id__in=[ct.id for model, ct in content_types.items()])
         self.fields['target_type'].label_from_instance = lambda obj: (
             '%s (%s)' % (obj, obj.model_class().__name__,)
+        )
+        self.fields['target_page'].queryset = BaseModel.objects.all()
+        self.fields['target_page'].label_from_instance = lambda obj: (
+            '%s%s (%s)' % ((obj.depth - 1) * '.. ',
+                           obj, obj.specific_class.__name__,)
         )
 
     def clean_target_fields(self, cleaned_data):
@@ -60,20 +65,22 @@ class BaseTargetFormMixin(forms.ModelForm):
             raise forms.ValidationError(
                 _('Page with class "%(class)s" is not createble.') %
                 model.__name__)
-        if model and model.objects.count() >= (model.max_count or 0) > 0:
+        if (model and model.max_count and
+                model.objects.count() >= model.max_count):
             raise forms.ValidationError(
                 _('Page with class "%(class)s" exceeded max_count'
                   ' instances limit (%(limit)d).') %
-                {'class': model.__name__, 'max_count': model.max_count})
+                {'class': model.__name__, 'limit': model.max_count,})
         if model and tt and tp and not model.can_create_at(tp):
             raise forms.ValidationError(
                 _('Page with class "%(class)s" can not be created'
-                  'at page with class "%(parent_class)s", allowed parent'
+                  ' at page with class "%(parent_class)s", allowed parent'
                   ' page types are (%(parent_classes)s).') %
                 {'class': model.__name__,
                  'parent_class': tp.specific_class.__name__,
                  'parent_classes': ', '.join(
-                     i.__name__ for i in model.allowed_parent_page_models())})
+                     i.__name__ for i in model.allowed_parent_page_models()
+                 )})
 
         return cleaned_data
 
@@ -171,13 +178,12 @@ class BasePagePrepareForm(BaseTargetFormMixin):
 # Admin classes
 # -------------
 class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
+    prepare_template = None
+    prepare_form = BasePagePrepareForm
+
     prepopulated_fields = {'slug': ('title',)}
 
     form = BasePageForm
-    readonly_fields = (
-        'parent', 'content_type', 'owner', 'depth', 'path', 'numchild',
-        'slug_path', 'url_path', 'active', 'date_create', 'date_update',)
-
     fieldsets_dict = {
         'main': {
             'fields': (
@@ -216,6 +222,9 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
             ),
         },
     }
+    readonly_fields = (
+        'parent', 'content_type', 'owner', 'depth', 'path', 'numchild',
+        'slug_path', 'url_path', 'active', 'date_create', 'date_update',)
 
     def check(self, **kwargs):
         errors = super().check(**kwargs)
@@ -233,82 +242,18 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
             )
         ]
 
-    # todo: to be refactored
-    def get_admin_url_for_specific_type(self, model, action, args=None):
-        opts = model._meta
-        obj_url = reverse(
-            'admin:%s_%s_%s' % (opts.app_label, opts.model_name, action,),
-            args=args, current_app=self.admin_site.name,
-        )
-        return obj_url
-
-    def changeform_view(self, request,
-                        object_id=None, form_url='', extra_context=None):
-
-        """
-        object_id is None:
-        - if base_model - select type and parent
-        - else          - create object
-
-        object_id is not None
-        - model mismatches object - redirect to respective admin or to base model
-        - model mathces object    - work as usual
-        """
-        base_model = self.model.get_base_model()
-
-        content_type = request.GET.get('target_type', '') or request.POST.get('target_type', '')
-        content_type = int(content_type) if content_type.isdigit() else None
-        content_type = ContentType.objects.filter(id=content_type).first()
-
-        parent = request.GET.get('target_page', '') or request.POST.get('target_page', '')
-        parent_id = int(parent) if parent.isdigit() else None
-        parent = base_model.objects.filter(id=parent_id).first()
-        parent = parent.specific if parent else None
-
-        # raise
-        if not object_id:
-            if base_model is self.model:
-                if not content_type:
-                    url = self.get_admin_url_for_specific_type(base_model, 'prepare')
-                    return redirect(url + '?target_type=%s' % ContentType.objects.get_for_model(self.model).id)
-                if not content_type.model_class() is self.model:
-                    url = self.get_admin_url_for_specific_type(content_type.model_class(), 'add')
-                    return redirect(url + '?_changelist_filters=e%3D7')
-
-                if not issubclass(content_type.model_class(), base_model):
-                    raise Exception('CT is not subclass of base Page.')
-            else:
-                if not content_type:
-                    url = self.get_admin_url_for_specific_type(base_model, 'prepare')
-                    return redirect(url + '?target_type=%s' % ContentType.objects.get_for_model(self.model).id)
-                if not content_type.model_class() is self.model:
-                    raise Exception('CT and models is not match.')
-
-            if parent_id and not parent:
-                raise Exception('Invalid PID')
-            if not content_type.model_class().is_creatable:
-                raise Exception('Type is not creatable')
-            if content_type.model_class().max_count and content_type.model_class().objects.count() >= content_type.model_class().max_count:
-                raise Exception('Type\'s max_count limit is exceeded.')
-            if parent and not content_type.model_class().can_create_at(parent):
-                raise Exception('Invalid PARENT')
-
-        else:
-            to_field = request.POST.get(TO_FIELD_VAR, request.GET.get(TO_FIELD_VAR))
-            if to_field and not self.to_field_allowed(request, to_field):
-                raise DisallowedModelAdminToField("The field %s can not be referenced." % to_field)
-
-            obj = self.get_object(request, unquote(object_id), to_field)
-            obj = obj.specific if obj else None
-            if obj and not type(obj) is self.model:
-                if self.model is base_model:
-                    url = self.get_admin_url_for_specific_type(type(obj), 'change', args=(quote(obj.pk),))
-                    return redirect(url + '?_changelist_filters=e%3D7')
-
-
-        return super().changeform_view(
-            request, object_id=object_id, form_url=form_url,
-            extra_context=extra_context)
+    def get_admin_url_for_model(self, model, action, args=None):
+        try:
+            return reverse(
+                'admin:%s_%s_%s' % (
+                    model._meta.app_label, model._meta.model_name, action,),
+                args=args, current_app=self.admin_site.name,
+            )
+        except NoReverseMatch as e:
+            raise NoReverseMatch(
+                '%s Ensure you have registered %s class in admin interface.'
+                % (e, model.__name__,)
+            ) if issubclass(model, BasePage) else e
 
     @csrf_protect_m
     def changelist_view(self, request, extra_context=None):
@@ -316,56 +261,86 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
         e = int(e) if e and e.isdigit() else e
         base_model = self.model.get_base_model()
 
-        if e == 7 and not self.model is base_model:
-            url = self.get_admin_url_for_specific_type(base_model, 'changelist')
+        if e == ERROR_VALUE_FOR_REDIRECT and not self.model is base_model:
+            url = self.get_admin_url_for_model(base_model, 'changelist')
             return redirect(url)
 
         return super().changelist_view(request, extra_context=extra_context)
 
-    prepare_template = None
-    prepare_form = BasePagePrepareForm
+    def changeform_view(self, request, object_id=None,
+                        form_url='', extra_context=None):
 
-    @csrf_protect_m
-    def prepare_view(self, request, extra_context=None):
-        model, opts = self.model, self.model._meta
-        base_model = model.get_base_model()
+        base_model = self.model.get_base_model()
 
-        if not self.has_add_permission(request):
-            raise PermissionDenied
+        content_type = request.POST.get(
+            'target_type', request.GET.get('target_type', None)) or None
+        content_type = ContentType.objects.filter(id=content_type).first()
 
-        Form = modelform_factory(base_model, form=self.prepare_form)
-        form = Form(request.POST or None, initial=request.GET)
-        if form.is_valid():
-            #self.message_user(request, format_html(
-            #    _('The balance of "{obj}" was changed successfully.'),
-            #    **{'obj': force_text(obj),}), messages.SUCCESS)
-            ct = form.cleaned_data.get('target_type')
-            pp = form.cleaned_data.get('target_page', None)
-            url = self.get_admin_url_for_specific_type(ct.model_class(), 'add')
-            tail = '?target_page=%s&target_type=%s' % (pp.id if pp else '', ct.id,)
-            if not base_model is ct.model_class():
-                tail += '&_changelist_filters=e%3D7'
-            return redirect(url + tail)
+        parent_id = request.POST.get(
+            'target_page', request.GET.get('target_page', None)) or None
+        parent = base_model.objects.filter(id=parent_id).first()
+        parent = parent.specific if parent else None
 
-        adminForm = helpers.AdminForm(
-            form, form.Meta.admin_fieldsets, {},
-            form.Meta.admin_readonly_fields, model_admin=self)
+        msg, url = None, None
+        if not object_id:
+            if not content_type:
+                url = '%s?target_type=%s' % (
+                    self.get_admin_url_for_model(base_model, 'prepare'),
+                    ContentType.objects.get_for_model(self.model).id)
+            elif not issubclass(content_type.model_class(), base_model):
+                msg = _('ContentType "%s" is not subclass of base Page.'
+                        ' It should be one of Page classes.') % content_type
+                url = self.get_admin_url_for_model(base_model, 'prepare')
+            elif content_type.model_class() is not self.model:
+                msg = _('Page type "%s" does not match admin model class'
+                        ' "%s".') % (content_type, self.model.__name__,)
+                url = '%s?target_type=%s' % (
+                    self.get_admin_url_for_model(base_model, 'prepare'),
+                    content_type.id)
+            elif parent_id and not parent:
+                msg = _('Invalid "target_page" value, page does not exist.')
+                url = '%s?target_type=%s' % (
+                    self.get_admin_url_for_model(base_model, 'prepare'),
+                    content_type.id)
+            elif parent and not self.model.can_create_at(parent):
+                msg = _('Page type "%s" can not be created in "%s" parent'
+                        ' page.') % (self.model.__name__, parent,)
+                url = '%s?target_type=%s' % (
+                    self.get_admin_url_for_model(base_model, 'prepare'),
+                    content_type.id)
+            elif not content_type.model_class().is_creatable:
+                msg = _('Page type "%s" can not be created manually'
+                        ' in admin interface.') % content_type
+                url = self.get_admin_url_for_model(base_model, 'prepare')
+            elif (self.model.max_count and
+                    self.model.objects.count() >= self.model.max_count):
+                msg = _('Page type "%s" exceeded max_count instances limit'
+                        ' (%d).') % (self.model.__name__, self.model.max_count,)
+                url = self.get_admin_url_for_model(base_model, 'prepare')
+        else:
+            to_field = request.POST.get(TO_FIELD_VAR,
+                                        request.GET.get(TO_FIELD_VAR))
+            if to_field and not self.to_field_allowed(request, to_field):
+                raise DisallowedModelAdminToField(
+                    "The field %s can not be referenced." % to_field)
 
-        context = dict(self.admin_site.each_context(request), **{
-            'title': _('Change balance of %s') % force_text(opts.verbose_name),
-            'adminform': adminForm,
-            'opts': opts,
-            'media': self.media + adminForm.media,
-            'errors': helpers.AdminErrorList(form, []),
-        })
-        context.update(extra_context or {})
+            # redirect if concrete type of obj and admin model do not match
+            obj = self.get_object(request, unquote(object_id), to_field)
+            obj = obj.specific if obj else None
+            if obj and type(obj) is not self.model:
+                url = '%s?_changelist_filters=e%%3D%s' % (
+                    self.get_admin_url_for_model(
+                        type(obj), 'change', args=(quote(obj.pk),)),
+                    ERROR_VALUE_FOR_REDIRECT)
 
-        request.current_app = self.admin_site.name
-        return TemplateResponse(request, self.prepare_template or [
-            "admin/%s/%s/prepare_form.html" % (opts.app_label, opts.model_name),
-            "admin/%s/prepare_form.html" % opts.app_label,
-            "admin/prepare_form.html"
-        ], context)
+        if msg:
+            self.message_user(request, msg, messages.ERROR)
+        if url:
+            return redirect(url)
+
+        return super().changeform_view(
+            request, object_id=object_id, form_url=form_url,
+            extra_context=extra_context)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -389,10 +364,52 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
 
         return urls
 
+    @csrf_protect_m
+    def prepare_view(self, request, extra_context=None):
+        model, opts = self.model, self.model._meta
+        base_model = model.get_base_model()
+
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        Form = modelform_factory(base_model, form=self.prepare_form)
+        form = Form(request.POST or None, initial=request.GET)
+        if form.is_valid():
+            tt = form.cleaned_data.get('target_type')
+            tp = form.cleaned_data.get('target_page', None)
+
+            url = self.get_admin_url_for_model(tt.model_class(), 'add')
+            tail = '?target_type=%s' % tt.id
+            if tp:
+                tail += '&target_page=%s' % tp.id
+            if ct.model_class() is not base_model:
+                tail += '&_changelist_filters=e%%3D%s' % ERROR_VALUE_FOR_REDIRECT
+
+            return redirect(url + tail)
+
+        adminForm = helpers.AdminForm(
+            form, form.Meta.admin_fieldsets, {},
+            form.Meta.admin_readonly_fields, model_admin=self)
+
+        context = dict(self.admin_site.each_context(request), **{
+            'title': _('Prepare form for %s') % force_text(opts.verbose_name),
+            'adminform': adminForm,
+            'opts': opts,
+            'media': self.media + adminForm.media,
+            'errors': helpers.AdminErrorList(form, []),
+        })
+        context.update(extra_context or {})
+
+        request.current_app = self.admin_site.name
+        return TemplateResponse(request, self.prepare_template or [
+            "admin/%s/%s/prepare_form.html" % (opts.app_label, opts.model_name),
+            "admin/%s/prepare_form.html" % opts.app_label,
+            "admin/prepare_form.html"
+        ], context)
+
     def save_model(self, request, obj, form, change):
-        """Given a model instance save it to the database."""
         if obj.pk is None:
-            # each-time reloading required by treebeard api
+            # TreeBeard api requires reloading new model from db after adding
             page = type(obj).add_root(instance=obj)
             page = type(obj).objects.filter(pk=page.pk).first()
             page.owner = request.user
