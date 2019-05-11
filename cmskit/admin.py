@@ -382,7 +382,7 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
             tail = '?target_type=%s' % tt.id
             if tp:
                 tail += '&target_page=%s' % tp.id
-            if ct.model_class() is not base_model:
+            if tt.model_class() is not base_model:
                 tail += '&_changelist_filters=e%%3D%s' % ERROR_VALUE_FOR_REDIRECT
 
             return redirect(url + tail)
