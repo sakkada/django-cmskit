@@ -28,7 +28,7 @@ class BaseItemPage(models.Model):
         ('date_anounce', 'anounce (date < date_start)'),
     )
     FILTER_FIELDS = ('filter', 'filter_date',)
-    ORDER_BY_DEFAULT = ('-date_start', '-weight',)
+    ORDER_BY_DEFAULT = ('-date_start', '-weight', '-id',)
 
     # behaviour
     filter = models.CharField(
@@ -157,7 +157,7 @@ class BaseItem(models.Model):
     class Meta:
         verbose_name = _('item')
         verbose_name_plural = _('items')
-        ordering = ('-date_start', '-weight',)
+        ordering = ('-date_start', '-weight', '-id',)
         abstract = True
 
     def __str__(self):

@@ -47,7 +47,7 @@ class ItemPageView(PageView):
 
         # extra view
         if node.alt_view:
-            response = self.alt_view_by_name(node.alt_view, 'node')
+            response = self.get_alt_view_by_name(node.alt_view, 'node')
             if response:
                 return response
 
@@ -104,7 +104,7 @@ class ItemPageView(PageView):
 
         # extended view
         if item.alt_view:
-            response = self.alt_view_by_name(item.alt_view, 'item')
+            response = self.get_alt_view_by_name(item.alt_view, 'item')
             if response:
                 return response
 
@@ -112,9 +112,9 @@ class ItemPageView(PageView):
         if item.show_in_meta:
             self.show_in_meta_handler(item)
 
-        self.set_template_name_variants('item', item.alt_template or item.page.alt_template, [
-            type(self.node), self.node.get_base_model(),
-        ])
+        self.set_template_name_variants(
+            'item', item.alt_template or item.page.alt_template,
+            [type(self.node), self.node.get_base_model(),])
 
         context = {
             'item': item,
