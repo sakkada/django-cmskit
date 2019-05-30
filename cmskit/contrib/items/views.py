@@ -1,8 +1,6 @@
-from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponseRedirect
 from django.core.paginator import Paginator, InvalidPage, EmptyPage
-from django.views.generic import TemplateView
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
 from cmskit.utils import jump_node_by_node
 from cmskit.utils.pagination import Pagination
 from cmskit.utils.querystring import QueryString
@@ -24,13 +22,14 @@ class ItemPageView(PageView):
             return True
         return False
 
-    def show_in_meta_handler(self, item):
-        # self.request.meta.chain.append(
-        #     {'link':self.request.get_full_path(), 'name':item.name})
-        # self.request.meta.title.append(item.meta_title or item.name)
-        # self.request.meta.keywords.append(item.meta_keywords)
-        # self.request.meta.description.append(item.meta_description)
-        pass
+    def show_in_meta_handler(self, context):
+        item = context['item']
+        context['metadata'] = {
+            'title': (item,),
+            'chain': (item,),
+            'metadata': (item.get_metatags()
+                         if hasattr(item, 'get_metatags') else None),
+        }
 
     def prepare_querysets(self):
         node = self.node
@@ -66,24 +65,23 @@ class ItemPageView(PageView):
 
     def view_list(self):
         """node list of items view"""
-        node    = self.node
-        onpage  = node.onpage if 0 < node.onpage < 1000 else 10
+        node = self.node
+        onpage = node.onpage if 0 < node.onpage < 1000 else 10
 
         # paginator and page
-        paginator   = Paginator(self.queryset_list, onpage)
-        page        = self.request.GET.get('page', '1')
-        page        = int(page) if page.isdigit() else 1
+        paginator = Paginator(self.queryset_list, onpage)
+        page = self.request.GET.get('page', '1')
+        page = int(page) if page.isdigit() else 1
         try:
             page_item = paginator.page(page)
         except (EmptyPage, InvalidPage):
-            page      = paginator.num_pages
+            page = paginator.num_pages
             page_item = paginator.page(page)
         page_item.pagination = self.pagination(page_item)
         # end paginator
 
-        self.set_template_name_variants('list', node.alt_template, [
-            type(node), node.get_base_model(),
-        ])
+        self.set_template_name_variants(
+            'list', node.alt_template, [type(node), node.get_base_model(),])
 
         context = {
             'node': node,
@@ -108,10 +106,6 @@ class ItemPageView(PageView):
             if response:
                 return response
 
-        # storage meta data
-        if item.show_in_meta:
-            self.show_in_meta_handler(item)
-
         self.set_template_name_variants(
             'item', item.alt_template or item.page.alt_template,
             [type(self.node), self.node.get_base_model(),])
@@ -121,5 +115,9 @@ class ItemPageView(PageView):
             'node': self.node,
             'querystring': QueryString(self.request),
         }
+
+        # add item meta data
+        if item.show_in_meta:
+            self.show_in_meta_handler(context)
 
         return context

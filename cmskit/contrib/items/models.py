@@ -4,7 +4,6 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 from django.db import models, transaction
-from cmskit.models import BasePage
 from .query import ItemManager
 
 

@@ -1,8 +1,5 @@
 from django.utils.translation import ugettext_lazy as _
-from django.urls import reverse
 from django.contrib import admin
-from django.db import models
-from django import forms
 from cmskit.admin import BasePageAdmin
 from cmskit.utils.admin import FieldsetsDictMixin
 

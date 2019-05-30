@@ -25,7 +25,6 @@ class PageView(TemplateView):
 
     def get_view_for_page(self, page):
         view_func = registry.views.get(type(page), None)
-        # view_func = self.views_map.get(type(page), None)
 
         if not view_func:
             return self
