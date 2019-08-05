@@ -12,9 +12,12 @@ class PaginationBase(object):
 
     def __init__(self, page, paginate=True):
         if isinstance(page, dict):
-            pages = page['pages'] or 1 if 'pages' in page else None
-            pages = pages or (page['count'] // page['perpage'] +
-                              (page['count'] % page['perpage'] and 1))
+            if 'pages' in page:
+                pages = page['pages'] or 1
+            else:
+                pages = page['count'] // page['perpage'] + (
+                    page['count'] % page['perpage'] and 1
+                )
             number = page['page'] if 1 <= page['page'] <= pages else 1
         else:
             pages = page.paginator.num_pages

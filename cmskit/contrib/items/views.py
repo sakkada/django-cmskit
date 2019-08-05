@@ -27,7 +27,7 @@ class ItemPageView(PageView):
         context['metadata'] = {
             'title': (item,),
             'chain': (item,),
-            'metadata': (item.get_metatags()
+            'metatags': (item.get_metatags()
                          if hasattr(item, 'get_metatags') else None),
         }
 

@@ -80,7 +80,7 @@ class BaseTargetFormMixin(forms.ModelForm):
                  'parent_class': tp.specific_class.__name__,
                  'parent_classes': ', '.join(
                      i.__name__ for i in model.allowed_parent_page_models()
-                 )})
+                 ),})
 
         return cleaned_data
 

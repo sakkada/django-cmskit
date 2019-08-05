@@ -4,7 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 
 """
 cmskit sample settings
-CMSKIT_TEMPLATES = TEMPLATES = (
+CMSKIT_TEMPLATES = (
     {
         'name': 'base',                         # required
         'path': 'base.html',                    # required
