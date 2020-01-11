@@ -18,8 +18,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import modelform_factory
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
-from django.utils.translation import ugettext_lazy as _
-from django.utils.encoding import force_text
+from django.utils.translation import gettext_lazy as _
+from django.utils.encoding import force_str
 from django.urls import reverse, path
 from django.urls.exceptions import NoReverseMatch
 
@@ -92,7 +92,6 @@ class BaseChoiceFieldsFormMixin(forms.ModelForm):
         'alt_template': {'allow_empty': True,},
         'base_template': {'allow_empty': False,},
         'url_name': {'allow_empty': True,},
-        'menu_extender': {'allow_empty': True,},
     }
 
     def __init__(self, *args, **kwargs):
@@ -130,14 +129,6 @@ class BaseChoiceFieldsFormMixin(forms.ModelForm):
         return [(name, '/%s (%s)' % (url, name)) for name, url in choices
                 if not ignored or not any(re.match(i, name) for i in ignored)]
 
-    def get_menu_extender_choices(self):
-        try:
-            from nodes.base import registry
-            registry.autodiscover()
-            return [(i, i,) for i in registry.menus.keys()]
-        except ImportError:
-            return []
-
     def get_base_template_choices(self):
         return [(i['code'], i['name'],) for i in conf.TEMPLATES]
 
@@ -157,10 +148,35 @@ class BasePageForm(BaseChoiceFieldsFormMixin, BaseTargetFormMixin):
         if self.instance.pk:
             self.fields['target_type'].required = False
 
+        self.fields['menu_extender'].help_text = (
+            f'{self.fields["menu_extender"].help_text} Available values: '
+            f'{", ".join(v for v in self.get_menu_extender_values()) or "-"}.'
+        )
+
     def clean(self):
         cleaned_data = super().clean()
         cleaned_data = self.clean_target_fields(cleaned_data)
         return cleaned_data
+
+    def clean_menu_extender(self):
+        data = self.cleaned_data['menu_extender'] or ''
+        menus = self.get_menu_extender_values()
+        values = [i.strip() for i in data.split(',') if i.strip()]
+
+        if not set(menus).issuperset(values) or len(values) != len(set(values)):
+            raise forms.ValidationError(
+                f'Value should be comma separated and unique menu list,'
+                f' taken from available values ({", ".join(menus)}).')
+
+        return ', '.join(values)
+
+    def get_menu_extender_values(self):
+        try:
+            from nodes.base import registry
+            registry.autodiscover()
+            return registry.menus.keys()
+        except ImportError:
+            return []
 
 
 class BasePagePrepareForm(BaseTargetFormMixin):
@@ -392,7 +408,7 @@ class BasePageAdmin(FieldsetsDictMixin, admin.ModelAdmin):
             form.Meta.admin_readonly_fields, model_admin=self)
 
         context = dict(self.admin_site.each_context(request), **{
-            'title': _('Prepare form for %s') % force_text(opts.verbose_name),
+            'title': _('Prepare form for %s') % force_str(opts.verbose_name),
             'adminform': adminForm,
             'opts': opts,
             'media': self.media + adminForm.media,

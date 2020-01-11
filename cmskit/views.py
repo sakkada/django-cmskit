@@ -164,7 +164,7 @@ class PageView(TemplateView):
         if not view_ex:
             raise Http404(
                 u'Extra view "%s" for node "%s/%s(%s)" is not accessible.'
-                % (self.node.view, self.node.node_name, self.node.slug,
+                % (self.node.alt_view, self.node.node_name, self.node.slug,
                    self.node.pk))
         response = view_ex(self.request, **self.kwargs)
         return response if issubclass(response.__class__,

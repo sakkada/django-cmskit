@@ -48,9 +48,7 @@ setup(
         'Topic :: Database',
         'Environment :: Web Environment',
         'Framework :: Django',
-        'Framework :: Django :: 2.0',
-        'Framework :: Django :: 2.1',
-        'Framework :: Django :: 2.2',
+        'Framework :: Django :: 3.0',
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: BSD License',
@@ -58,9 +56,9 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
 
         'Operating System :: OS Independent',
 
@@ -81,14 +79,14 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'django>=2.0.0,<3.0.0',
+        'django>=3.0.0,<4.0.0',
         'django-treebeard>=4.2.0,<5.0',
     ],
 
     # Extras (optional features with their own dependencies)
     extras_require={},
 
-    python_requires='>=3.5,<4',
+    python_requires='>=3.6,<4',
 
     include_package_data=True,
     zip_safe=False

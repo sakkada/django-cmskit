@@ -21,7 +21,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import capfirst, slugify
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from treebeard.mp_tree import MP_Node
 from treebeard.exceptions import InvalidPosition
 
@@ -118,8 +118,8 @@ class BasePage(TIBaseModel, MP_Node, metaclass=PageBase):
         _('menu title'), max_length=255, blank=True,
         help_text=_('Overwrite the title in the menu.'))
     menu_extender = models.CharField(
-        _('attached menu'), max_length=64, db_index=True, blank=True,
-        help_text=_('Menu extender class name.'))
+        _('attached menus'), max_length=64, db_index=True, blank=True,
+        help_text=_('Menu extender class names, comma separated.'))
     menu_in = models.BooleanField(
         _('in navigation'), default=True, db_index=True,
         help_text=_('This node in navigation (menu in?).'))
